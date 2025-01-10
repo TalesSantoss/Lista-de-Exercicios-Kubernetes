@@ -41,7 +41,40 @@ kubectl get pods
 ![image](https://github.com/user-attachments/assets/1db3cb18-e38e-4cfb-8d0f-e2d709c64338)
 
 # Implante um Deployment chamado "my-deployment" com três réplicas de uma aplicação baseada na imagem "httpd". Atualize a imagem do Deployment para uma versão mais recente.
-
+1. Crie um arquivo chamado my-deployment.yaml:
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+  labels:
+    app: my-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: httpd-container
+        image: httpd:2.4
+        ports:
+        - containerPort: 80
+```
+2. Executar o Deployment:
+````
+kubectl apply -f my-deployment.yaml
+````
+3. Utilize o comando "kubectl get deployments" para verificar se foram feitas as réplicas:
+![image](https://github.com/user-attachments/assets/274450a5-cb9f-4f95-ac21-7b05408db4ac)
+4. Realize o comando a seguir para atualizar a imagem:
+````
+kubectl set image deployment/my-deployment httpd-container=httpd:2.4.57
+````
 # Crie um ConfigMap chamado "app-config" com uma variável de configuração personalizada. Monte o ConfigMap em um pod e verifique se o valor foi aplicado corretamente.
 
 # Crie um Secret chamado "app-secret" contendo informações sensíveis. Injete o Secret como uma variável de ambiente em um pod e teste se está acessível.
