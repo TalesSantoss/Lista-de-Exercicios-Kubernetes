@@ -298,9 +298,160 @@ wget -qO- http://backend-service
 A saída será o conteúdo HTML da página padrão do Nginx, indicando que a conectividade foi bem-sucedida.
 
 # Implante um Job chamado "batch-job" que execute um comando simples e termine. Verifique os logs do Job para confirmar sua execução.
-
+1. Primeiro, crie um arquivo chamado "batch-job.yaml"
+````
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: batch-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: simple-job
+        image: busybox
+        command: ["sh", "-c", "echo 'Hello from batch job' && sleep 5"]
+      restartPolicy: Never
+  backoffLimit: 4
+````
+2. Rode o código
+````
+kubectl apply -f batch-job.yaml
+````
+3. Encontre o nome do Pod gerado pelo Job, e use esse nome para verificar os logs:
+````
+kubectl get pods
+kubectl logs batch-job-xxxx
+````
+4. A saída será:
+````
+Hello from batch job
+````
 # Crie um Horizontal Pod Autoscaler para um Deployment chamado "hpa-deployment" e configure-o para escalar com base no uso de CPU. Aumente a carga e observe o escalonamento.
-
-# Crie um serviço do tipo NodePort para expor externamente um Deployment chamado "webapp". Acesse o serviço usando o endereço IP do Minikube e a porta atribuída.
-
+1. Crie um arquivo chamado "hpa-deployment.yaml":
+````
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hpa-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hpa-app
+  template:
+    metadata:
+      labels:
+        app: hpa-app
+    spec:
+      containers:
+      - name: hpa-container
+        image: k8s.gcr.io/hpa-example  # Imagem de exemplo que usa CPU
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "200m"
+          limits:
+            cpu: "500m"
+````
+2. Rodar o código:
+````
+kubectl apply -f hpa-deployment.yaml
+````
+3.  Criar o Horizontal Pod Autoscaler que manterá a CPU em 50%:
+````
+kubectl autoscale deployment hpa-deployment --cpu-percent=50 --min=1 --max=5
+````
+4. Crie um Pod de teste para gerar carga no serviço e dentro dele, execute um loop para gerar solicitações:
+````
+kubectl run -it load-generator --image=busybox --restart=Never -- sh
+while true; do wget -q -O- http://hpa-deployment; done
+````
+5. Use o comando abaixo para monitorar as réplicas do Deployment e o comportamento do HPA:
+````
+kubectl get hpa
+kubectl get deployments
+````
+Você verá o número de réplicas aumentar conforme a carga sobre a CPU aumenta.
+# Crie um serviço do tipo NodePort para expor externamente um Deployment chamado "webapp". Acesse o serviço usando o endereço IP e a porta atribuída.
+1. Crie um arquivo chamado "webapp-deployment.yaml":
+````
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+    spec:
+      containers:
+      - name: webapp-container
+        image: nginx
+        ports:
+        - containerPort: 80
+````
+2. Aplicar o deployment:
+````
+kubectl apply -f webapp-deployment.yaml
+````
+3. Crie um serviço do tipo NodePort chamado "Webapp-service.yaml":
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-service
+spec:
+  selector:
+    app: webapp
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+    nodePort: 30080  # Escolha uma porta dentro da faixa permitida (30000-32767)
+  type: NodePort
+````
+4. Aplique o Serviço:
+````
+kubectl apply -f webapp-service.yaml
+`````
+5. Para acessar o serviço, obtenha o endereço ip dos nós:
+````
+kubectl get nodes -o wide
+````
+6.Use o IP do nó e a porta atribuída para acessar o serviço no navegador e você verá a página de boas-vindas padrão do Nginx se tudo estiver configurado corretamente.
 # Crie um pod chamado "restart-pod" com a política de reinício configurada como "OnFailure". Provoque uma falha no pod e observe seu comportamento.
+1. Primeiro, crie o pod chamado "restart-pod.yaml":
+````
+apiVersion: v1
+kind: Pod
+metadata:
+  name: restart-pod
+spec:
+  restartPolicy: OnFailure
+  containers:
+  - name: fail-container
+    image: busybox
+    command: ["sh", "-c", "echo 'Simulating failure'; exit 1"]
+````
+2. Aplicar o pod:
+```
+kubectl apply -f restart-pod.yaml
+```
+3. Use o comando para verificar os detalhes do Pod:
+````
+kubectl describe pod restart-pod
+````
+Você verá um campo mostrando quantas vezes o Pod foi reiniciado.
+
+4. Veja os logs do Pod:
+````
+kubectl logs restart-pod
+````
+O log mostrará a mensagem Simulating failure antes da falha e reinício.
